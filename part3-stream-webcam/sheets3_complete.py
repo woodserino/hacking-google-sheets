@@ -4,13 +4,12 @@ import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from PIL import Image
+import cv2
 
 #
 # Edit Here: The ID of your spreadsheet.
 #
 SHEET_ID = '{sheetId}'
-GIF_FILENAME = 'animation.gif'
 
 def main():
     #
@@ -35,18 +34,18 @@ def main():
     #
     service = build('sheets', 'v4', credentials=creds)
     sheetId = 0
-    im = Image.open(GIF_FILENAME)
-    while 1:
-        try:
-            im.seek(im.tell()+1)
-        except EOFError:
-            im.seek(0)
-        rgb_im = im.convert('RGB')
-        rows, cols = im.size
+    cam = cv2.VideoCapture(0)
+
+    while(True):
+        ret, frame = cam.read()
+        x = 0
         requests = []
-        for x in range(0,rows):
-            for y in range(0,cols):
-                r, g, b = rgb_im.getpixel((x, y))
+
+        for row in frame[0::6]:
+            y = 0
+            x += 1
+            for cell in row[0::25]:
+                y += 1
                 #
                 # Add each pixel colour to the request
                 #
@@ -55,23 +54,23 @@ def main():
                       "repeatCell": {
                         "range": {
                           "sheetId": sheetId,
-                                  "startRowIndex": y,
-                                  "endRowIndex": y+1,
-                                  "startColumnIndex": x,
-                                  "endColumnIndex": x+1
-                                },
-                                "cell": {
-                                  "userEnteredFormat": {
-                                    "backgroundColor": {
-                                      "red": (float(r)/255),
-                                      "green": (float(g)/255),
-                                      "blue": (float(b)/255)
-                                    }
-                                  }
-                                },
-                                "fields": "userEnteredFormat(backgroundColor)"
-                              }
-                            })
+                          "startRowIndex": x,
+                          "endRowIndex": x+1,
+                          "startColumnIndex": y,
+                          "endColumnIndex": y+1
+                        },
+                        "cell": {
+                          "userEnteredFormat": {
+                            "backgroundColor": {
+                              "red": float(cell[2])/255,
+                              "green": float(cell[1])/255,
+                              "blue": float(cell[0])/255
+                            }
+                          }
+                        },
+                        "fields": "userEnteredFormat(backgroundColor)"
+                      }
+                    })
 
         #
         # Send the request via the Google API
@@ -79,11 +78,12 @@ def main():
         body = {
             'requests': requests
         }
-        if len(requests) > 0:
-            response = service.spreadsheets().batchUpdate(
-                spreadsheetId=SHEET_ID,
-                body=body).execute()
+        response = service.spreadsheets().batchUpdate(
+            spreadsheetId=SHEET_ID,
+            body=body).execute()
 
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
 if __name__ == '__main__':
     main()

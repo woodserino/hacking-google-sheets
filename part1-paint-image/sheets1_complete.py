@@ -36,10 +36,6 @@ def main():
     service = build('sheets', 'v4', credentials=creds)
     sheetId = 0
     im = Image.open(IMAGE_FILENAME)
-    try:
-        im.seek(im.tell()+1)
-    except EOFError:
-        im.seek(0)
     rgb_im = im.convert('RGB')
     rows, cols = im.size
     requests = []
